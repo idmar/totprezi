@@ -1,9 +1,11 @@
 /* ═══════════════════════════════════════════════════════════
-   王國召 · Prezi-style Interactive Canvas
+   雙個展 · 王國召 × 張琳 · Prezi-style Interactive Canvas
    Dark museum aesthetic · Smooth zoom & pan
    ═══════════════════════════════════════════════════════════ */
 
 :root {
+  --stage-w: 4000px;
+  --stage-h: 6700px;
   --bg-1: #0a0a0c;
   --bg-2: #14141a;
   --ink: #e8e4dc;
@@ -13,6 +15,9 @@
   --blue: #7a9eb5;
   --green: #a8b89d;
   --crimson: #c47a6e;
+  --rose: #d1738f;
+  /* 各展廳的強調色，由 .node-center-alt / .info-card 覆寫 */
+  --accent: #d4a574;
   --serif-zh: 'Noto Serif TC', 'Songti TC', serif;
   --serif-en: 'Cormorant Garamond', Georgia, serif;
   --sans: 'Inter', -apple-system, 'PingFang TC', sans-serif;
@@ -64,8 +69,8 @@ body:active { cursor: grabbing; }
 #stage {
   position: fixed;
   left: 0; top: 0;
-  width: 4000px;
-  height: 2800px;
+  width: var(--stage-w);
+  height: var(--stage-h);
   transform-origin: 0 0;
   will-change: transform;
   transition: transform 1.4s cubic-bezier(0.65, 0, 0.35, 1);
@@ -77,8 +82,8 @@ body:active { cursor: grabbing; }
 #constellation {
   position: absolute;
   left: 0; top: 0;
-  width: 4000px;
-  height: 2800px;
+  width: var(--stage-w);
+  height: var(--stage-h);
   pointer-events: none;
   z-index: 1;
 }
@@ -93,6 +98,117 @@ body:active { cursor: grabbing; }
 
 .node:hover { filter: brightness(1.15); }
 .node:active { transform: translate(-50%, -50%) scale(0.98); }
+
+/* ─── 展覽序廳卡片 ──────────────────────────────── */
+.node-hub {
+  width: 1240px;
+  height: 460px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hub-card {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  padding: 50px 60px;
+  border: 1px solid rgba(232, 228, 220, 0.1);
+  background: rgba(20, 20, 26, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+}
+
+.hub-card::before, .hub-card::after {
+  content: '';
+  position: absolute;
+  left: 60px; right: 60px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(232,228,220,0.18), transparent);
+}
+.hub-card::before { top: 24px; }
+.hub-card::after { bottom: 24px; }
+
+.hub-kicker {
+  font-family: var(--serif-en);
+  font-size: 15px;
+  letter-spacing: 0.45em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.hub-title {
+  font-family: var(--serif-zh);
+  font-weight: 300;
+  font-size: 58px;
+  letter-spacing: 0.35em;
+  padding-left: 0.35em;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.hub-title-en {
+  font-family: var(--serif-en);
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+  margin-bottom: 34px;
+}
+
+.hub-names {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 30px;
+}
+
+.hub-name {
+  font-family: var(--serif-zh);
+  font-size: 30px;
+  letter-spacing: 0.3em;
+  padding: 6px 14px 6px calc(14px + 0.3em);
+  color: var(--ink);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 0.35s ease, border-color 0.35s ease;
+}
+
+.hub-name em {
+  display: block;
+  font-family: var(--serif-en);
+  font-size: 14px;
+  font-style: italic;
+  letter-spacing: 0.12em;
+  color: var(--ink-mute);
+  margin-top: 6px;
+}
+
+.hub-name:first-of-type:hover { color: var(--gold); border-bottom-color: var(--gold); }
+.hub-name:last-of-type:hover { color: var(--rose); border-bottom-color: var(--rose); }
+
+.hub-slash {
+  font-family: var(--serif-en);
+  font-size: 22px;
+  color: var(--ink-mute);
+}
+
+.hub-note {
+  font-family: var(--serif-zh);
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 2;
+  color: var(--ink-dim);
+  max-width: 640px;
+  margin: 0 auto 8px;
+}
 
 /* ─── 中央藝術家卡片 ────────────────────────────── */
 .node-center {
@@ -143,12 +259,14 @@ body:active { cursor: grabbing; }
   padding-left: 0.3em; /* compensate letter-spacing for visual centering */
 }
 
+.node-center-alt { --accent: var(--rose); }
+
 .zh-en-title .en {
   font-family: var(--serif-en);
   font-weight: 300;
   font-style: italic;
   font-size: 28px;
-  color: var(--gold);
+  color: var(--accent);
   letter-spacing: 0.05em;
   margin-bottom: 60px;
 }
@@ -196,7 +314,7 @@ body:active { cursor: grabbing; }
 
 .bracket {
   font-family: var(--serif-en);
-  color: var(--gold);
+  color: var(--accent);
   font-size: 24px;
   margin: 0 6px;
 }
@@ -210,7 +328,7 @@ body:active { cursor: grabbing; }
 }
 .hint-dot {
   width: 6px; height: 6px;
-  background: var(--gold);
+  background: var(--accent);
   border-radius: 50%;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -255,9 +373,8 @@ body:active { cursor: grabbing; }
   opacity: 0.7;
 }
 
-.zone-label:hover h2 { color: var(--gold); }
-.zone-label[data-color="#7a9eb5"]:hover h2 { color: var(--blue); }
-.zone-label[data-color="#a8b89d"]:hover h2 { color: var(--green); }
+.zone-label .en { color: var(--zone-color, var(--ink-dim)); }
+.zone-label:hover h2 { color: var(--zone-color, var(--gold)); }
 
 /* ─── 作品卡（縮圖） ────────────────────────────── */
 .artwork {
@@ -283,10 +400,14 @@ body:active { cursor: grabbing; }
 }
 
 .artwork:hover {
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,165,116,0.3);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6),
+              0 0 0 1px color-mix(in srgb, var(--zone-color, #d4a574) 35%, transparent);
   z-index: 10;
 }
-.artwork:hover::after { border-color: rgba(212,165,116,0.4); }
+.artwork:hover::after,
+.artwork.is-current::after {
+  border-color: color-mix(in srgb, var(--zone-color, #d4a574) 45%, transparent);
+}
 
 .artwork-image {
   width: 100%;
@@ -327,9 +448,10 @@ body:active { cursor: grabbing; }
 }
 
 /* 主題區顏色區分 */
-.artwork.zone-1 .artwork-image { box-shadow: inset 0 0 60px rgba(212,165,116,0.05); }
-.artwork.zone-2 .artwork-image { box-shadow: inset 0 0 60px rgba(122,158,181,0.05); }
-.artwork.zone-3 .artwork-image { box-shadow: inset 0 0 60px rgba(168,184,157,0.05); }
+.artwork .artwork-image {
+  box-shadow: inset 0 0 60px
+    color-mix(in srgb, var(--zone-color, #d4a574) 6%, transparent);
+}
 
 /* ─── UI 控制層 ──────────────────────────────────── */
 .ui-layer {
@@ -372,6 +494,36 @@ body:active { cursor: grabbing; }
 .crumb.hidden { display: none; }
 
 .sep { color: var(--ink-mute); }
+
+/* 展廳切換 */
+.hall-switch {
+  position: fixed;
+  top: 30px; right: 40px;
+  display: flex;
+  gap: 1px;
+  background: rgba(232,228,220,0.08);
+  border: 1px solid rgba(232,228,220,0.08);
+  z-index: 100;
+}
+
+.hall-switch button {
+  background: rgba(10, 10, 12, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: none;
+  color: var(--ink-dim);
+  font-family: var(--serif-zh);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  padding: 12px 22px 12px calc(22px + 0.2em);
+  cursor: pointer;
+  transition: color 0.3s ease, background 0.3s ease;
+}
+
+.hall-switch button:hover { color: var(--ink); }
+.hall-switch button:first-child.active { color: var(--gold); }
+.hall-switch button:last-child.active { color: var(--rose); }
+.hall-switch button.active { background: rgba(232,228,220,0.06); }
 
 /* 縮放控制 */
 .zoom-controls {
@@ -581,6 +733,14 @@ body:active { cursor: grabbing; }
   flex: 1;
 }
 
+.info-artist {
+  font-family: var(--serif-zh);
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: var(--zone-color, var(--ink-mute));
+  margin-bottom: 12px;
+}
+
 .info-zh {
   font-family: var(--serif-zh);
   font-weight: 400;
@@ -594,7 +754,7 @@ body:active { cursor: grabbing; }
   font-family: var(--serif-en);
   font-style: italic;
   font-size: 16px;
-  color: var(--gold);
+  color: var(--zone-color, var(--gold));
   letter-spacing: 0.05em;
   margin-bottom: 24px;
 }
@@ -686,8 +846,19 @@ body:active { cursor: grabbing; }
 }
 
 /* ─── 響應式 ─────────────────────────────────────── */
+@media (max-width: 900px) {
+  .hall-switch { top: 15px; right: 15px; }
+  .hall-switch button { font-size: 11px; padding: 8px 12px 8px calc(12px + 0.2em); }
+}
+
 @media (max-width: 768px) {
-  .breadcrumb { top: 15px; left: 15px; font-size: 11px; padding: 8px 14px; }
+  .breadcrumb {
+    top: 15px; left: 15px; right: 15px;
+    font-size: 11px; padding: 8px 14px;
+    margin-top: 44px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
   .zoom-controls { right: 15px; }
   .zoom-controls button { width: 36px; height: 36px; font-size: 16px; }
   .tour-btn { bottom: 20px; right: 20px; padding: 12px 18px; font-size: 11px; }
@@ -699,4 +870,19 @@ body:active { cursor: grabbing; }
   .info-card:not(.hidden) { transform: translateY(0); }
   .info-body { padding: 20px 22px; }
   .intro-tip { font-size: 10px; bottom: 90px; }
+
+  /* 序廳卡片在窄螢幕改成直式，避免橫向溢出 */
+  .node-hub { width: 820px; height: 1000px; }
+  .hub-card { padding: 70px 50px; }
+  .hub-card::before, .hub-card::after { left: 40px; right: 40px; }
+  .hub-title { font-size: 76px; }
+  .hub-title-en { font-size: 30px; margin-bottom: 44px; }
+  .hub-names { flex-direction: column; gap: 26px; margin-bottom: 44px; }
+  .hub-name { font-size: 40px; }
+  .hub-name em { font-size: 19px; }
+  .hub-slash { display: none; }
+  .hub-kicker { font-size: 20px; }
+  .hub-note { font-size: 21px; line-height: 2.1; }
+  .hub-card .hint-text { font-size: 17px; }
+  .hub-card .hint-dot { width: 8px; height: 8px; }
 }

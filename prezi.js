@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
-   王國召 · Prezi-style 互動畫布導航
+   雙個展 · Prezi-style 互動畫布導航
+   層級：全覽 › 藝術家 › 主題區 › 作品
    ═══════════════════════════════════════════════════════════ */
 
 (() => {
@@ -7,19 +8,27 @@
 
   const stage = document.getElementById('stage');
   const artworksContainer = document.getElementById('artworks');
+  const zoneLabelsContainer = document.getElementById('zoneLabels');
   const constellation = document.getElementById('constellation');
   const canvas = document.getElementById('particleCanvas');
   const ctx = canvas.getContext('2d');
 
-  const STAGE_W = 4000;
-  const STAGE_H = 2800;
+  const STAGE_W = STAGE.w;
+  const STAGE_H = STAGE.h;
 
-  // ── 畫布載入 ─────────────────────────────────────────
+  const MIN_SCALE = 0.08;
+  const MAX_SCALE = 2.5;
+
+  const artistById = id => ARTISTS.find(a => a.id === id);
+  const workById = id => ARTWORKS.find(a => a.id === id);
+  const worksOfArtist = id => ARTWORKS.filter(a => a.artist === id);
+  const worksOfZone = n => ARTWORKS.filter(a => a.zone === Number(n));
+
   let currentFrame = 'center';
-  let history = ['center'];
   let isTouring = false;
   let tourTimer = null;
   let tourIndex = 0;
+  let tourList = ARTWORKS;
 
   // ── 載入狀態管理 ─────────────────────────────────────
   let loadedCount = 0;
@@ -28,42 +37,79 @@
   const loaderFill = document.getElementById('loaderFill');
   const loader = document.getElementById('loader');
 
-  // 預載作品圖
-  ARTWORKS.forEach((art, idx) => {
+  function hideLoader() {
+    if (loader.classList.contains('hidden')) return;
+    loader.classList.add('hidden');
+    setTimeout(() => loader.style.display = 'none', 1200);
+  }
+
+  ARTWORKS.forEach(art => {
     const img = new Image();
     img.onload = img.onerror = () => {
       loadedCount++;
       loaderFill.style.width = (loadedCount / totalToLoad * 100) + '%';
-      if (loadedCount === totalToLoad) {
-        setTimeout(() => {
-          loader.classList.add('hidden');
-          setTimeout(() => loader.style.display = 'none', 1200);
-        }, 400);
-      }
+      if (loadedCount === totalToLoad) setTimeout(hideLoader, 400);
     };
     img.src = art.image;
   });
 
-  // 5 秒後強制隱藏 loader
+  // 作品較多，最長等 8 秒就進場
   setTimeout(() => {
-    if (!loader.classList.contains('hidden')) {
-      loaderFill.style.width = '100%';
-      loader.classList.add('hidden');
-      setTimeout(() => loader.style.display = 'none', 1200);
-    }
-  }, 6000);
+    loaderFill.style.width = '100%';
+    hideLoader();
+  }, 8000);
+
+  // ── 節點定位 ─────────────────────────────────────────
+  function placeFixedNodes() {
+    const hub = document.querySelector('.node-hub');
+    hub.style.left = HUB.pos[0] + 'px';
+    hub.style.top = HUB.pos[1] + 'px';
+
+    ARTISTS.forEach(artist => {
+      const el = document.querySelector(`.node-center[data-artist="${artist.id}"]`);
+      if (!el) return;
+      el.style.left = artist.pos[0] + 'px';
+      el.style.top = artist.pos[1] + 'px';
+    });
+  }
+
+  // ── 建立主題區標籤 ───────────────────────────────────
+  function buildZoneLabels() {
+    Object.keys(ZONES).forEach(n => {
+      const z = ZONES[n];
+      const el = document.createElement('div');
+      el.className = `zone-label zone-${n}`;
+      el.dataset.frame = 'zone-' + n;
+      el.dataset.zone = n;
+      el.dataset.artist = z.artist;
+      el.style.left = z.label[0] + 'px';
+      el.style.top = z.label[1] + 'px';
+      el.style.setProperty('--zone-color', z.color);
+      el.innerHTML = `<h2>${z.name}</h2><p class="en">${z.en}</p>`;
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        navigateTo('zone-' + n);
+      });
+      zoneLabelsContainer.appendChild(el);
+    });
+  }
 
   // ── 建立作品節點 ─────────────────────────────────────
   function buildArtworks() {
-    ARTWORKS.forEach((art, idx) => {
+    ARTWORKS.forEach(art => {
+      const scale = art.scale || 1;
       const el = document.createElement('div');
-      el.className = `artwork zone-${art.zone}`;
+      el.className = `artwork zone-${art.zone} artist-${art.artist}`;
       el.style.left = art.pos[0] + 'px';
       el.style.top = art.pos[1] + 'px';
-      if (art.scale && art.scale !== 1) {
-        el.style.transform = `translate(-50%, -50%) scale(${art.scale})`;
+      el.style.setProperty('--zone-color', ZONES[art.zone].color);
+      if (scale !== 1) {
+        el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        el.style.width = (280 * scale) + 'px';
       }
       el.dataset.id = art.id;
+      el.dataset.artist = art.artist;
+      el.dataset.zone = art.zone;
       el.dataset.frame = 'work-' + art.id;
       el.innerHTML = `
         <div class="artwork-image" style="background-image:url('${art.image}')"></div>
@@ -72,47 +118,43 @@
           <span class="en">${art.en}</span>
         </div>
       `;
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', e => {
         e.stopPropagation();
         navigateTo('work-' + art.id, art);
       });
       artworksContainer.appendChild(el);
     });
-
-    // 初始化大小：CHAOS 較大、調整 transform-origin
-    document.querySelectorAll('.artwork').forEach(el => {
-      const rect = el.getBoundingClientRect();
-      el.style.width = (280 * parseFloat(el.style.transform.match(/scale\(([\d.]+)\)/)?.[1] || 1)) + 'px';
-    });
   }
 
   // ── 連線（星座線）──────────────────────────────────────
   function buildConstellation() {
-    // 中心到三個區
-    const cx = 2000, cy = 1400;
-    const z1 = ZONES[1].center;
-    const z2 = ZONES[2].center;
-    const z3 = ZONES[3].center;
+    // 序廳 → 兩位藝術家
+    ARTISTS.forEach(artist => {
+      addLine(HUB.pos[0], HUB.pos[1], artist.pos[0], artist.pos[1], 'lineGradHub', 2, '#e8e4dc');
+    });
 
-    addLine(cx, cy, z1[0], z1[1], 'lineGrad1', 2.5);
-    addLine(cx, cy, z2[0], z2[1], 'lineGrad2', 2.5);
-    addLine(cx, cy, z3[0], z3[1], 'lineGrad3', 2.5);
+    // 藝術家 → 各自的主題區
+    ARTISTS.forEach(artist => {
+      artist.zones.forEach(n => {
+        const z = ZONES[n];
+        addLine(artist.pos[0], artist.pos[1], z.center[0], z.center[1], z.grad, 2.5, z.color);
+      });
+    });
 
     // 區內作品之間的連線
     ARTWORKS.forEach((art, i) => {
       ARTWORKS.slice(i + 1).forEach(other => {
-        if (other.zone === art.zone) {
-          const dist = Math.hypot(art.pos[0] - other.pos[0], art.pos[1] - other.pos[1]);
-          if (dist < 900) {
-            const grad = art.zone === 1 ? 'lineGrad1' : art.zone === 2 ? 'lineGrad2' : 'lineGrad3';
-            addLine(art.pos[0], art.pos[1], other.pos[0], other.pos[1], grad, 1);
-          }
+        if (other.zone !== art.zone) return;
+        const dist = Math.hypot(art.pos[0] - other.pos[0], art.pos[1] - other.pos[1]);
+        if (dist < 900) {
+          const z = ZONES[art.zone];
+          addLine(art.pos[0], art.pos[1], other.pos[0], other.pos[1], z.grad, 1, z.color);
         }
       });
     });
   }
 
-  function addLine(x1, y1, x2, y2, gradId, width = 1) {
+  function addLine(x1, y1, x2, y2, gradId, width, color) {
     const ns = 'http://www.w3.org/2000/svg';
     const line = document.createElementNS(ns, 'line');
     line.setAttribute('x1', x1);
@@ -125,271 +167,316 @@
     line.style.opacity = '0.6';
     constellation.appendChild(line);
 
-    // 起點小圓點
-    addDot(x1, y1, gradId, 3);
-    addDot(x2, y2, gradId, 3);
+    addDot(x1, y1, color, 3);
+    addDot(x2, y2, color, 3);
   }
 
-  function addDot(x, y, gradId, r = 2) {
+  function addDot(x, y, color, r) {
     const ns = 'http://www.w3.org/2000/svg';
     const circle = document.createElementNS(ns, 'circle');
     circle.setAttribute('cx', x);
     circle.setAttribute('cy', y);
     circle.setAttribute('r', r);
-    const colorMap = {
-      lineGrad1: '#d4a574',
-      lineGrad2: '#7a9eb5',
-      lineGrad3: '#a8b89d'
-    };
-    circle.setAttribute('fill', colorMap[gradId] || '#d4a574');
+    circle.setAttribute('fill', color || '#d4a574');
     circle.setAttribute('opacity', '0.7');
     constellation.appendChild(circle);
   }
 
-  // ── 視圖定位 ─────────────────────────────────────────
-  // 將畫布縮放 / 平移，使目標點 (x, y) 位於視窗中心，並以 scale 縮放
-  function viewAt(targetX, targetY, scale = 1) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+  // ── 視圖狀態 ─────────────────────────────────────────
+  // stage 的 transform-origin 為 0 0：screen = stagePoint * scale + t
+  const view = { tx: 0, ty: 0, scale: 0.5 };
+  let transitionTimer = null;
 
-    // transform-origin: 0 0
-    // 對 viewport 中心 (vw/2, vh/2)，要讓 target (x, y) 出現在中心：
-    // translate(-targetX, -targetY) 後再 scale(s) → 將 (0,0) 拉到 (0,0)，並把 (x, y) 拉到 (-targetX*s, -targetY*s)
-    // 為使 (x, y) 在 viewport 中央，需再 translate(vw/2 - x*s, vh/2 - y*s)
-    const tx = vw / 2 - targetX * scale;
-    const ty = vh / 2 - targetY * scale;
-    stage.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  function applyView() {
+    stage.style.transform =
+      `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`;
   }
 
-  // 各視圖預設位置（中心瞄準點 + 縮放）
+  // 直接操作（拖曳、滾輪）時關掉緩動，靜止後再恢復
+  function setLive() {
+    stage.classList.add('no-transition');
+    clearTimeout(transitionTimer);
+    transitionTimer = setTimeout(() => stage.classList.remove('no-transition'), 200);
+  }
+
+  // 將目標點 (x, y) 移到視窗中心，並以 scale 縮放
+  function viewAt(targetX, targetY, scale) {
+    view.scale = clampScale(scale);
+    view.tx = window.innerWidth / 2 - targetX * view.scale;
+    view.ty = window.innerHeight / 2 - targetY * view.scale;
+    applyView();
+  }
+
+  function clampScale(s) {
+    return Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+  }
+
+  // 以某個螢幕座標為錨點縮放
+  function zoomAround(clientX, clientY, newScale) {
+    const s = clampScale(newScale);
+    const sx = (clientX - view.tx) / view.scale;
+    const sy = (clientY - view.ty) / view.scale;
+    view.scale = s;
+    view.tx = clientX - sx * s;
+    view.ty = clientY - sy * s;
+    applyView();
+  }
+
+  // ── 框架 ─────────────────────────────────────────────
+  // 卡片在窄螢幕上會被 CSS 改成另一種版型，因此取實際尺寸來收斂縮放，
+  // 保證整張卡片都留在視窗內
+  function scaleForNode(selector, baseScale) {
+    const el = document.querySelector(selector);
+    if (!el || !el.offsetWidth || !el.offsetHeight) return baseScale;
+    return Math.min(
+      baseScale,
+      (window.innerWidth - 40) / el.offsetWidth,
+      (window.innerHeight - 40) / el.offsetHeight
+    );
+  }
+
   function getFramePosition(frame) {
     if (frame === 'center') {
-      return { x: 2000, y: 1400, scale: 0.5 };
+      return {
+        x: HUB.pos[0], y: HUB.pos[1],
+        scale: scaleForNode('.node-hub', HUB.scale)
+      };
     }
-    if (frame === 'zone-1') {
-      return { x: ZONES[1].center[0], y: ZONES[1].center[1], scale: 0.85 };
-    }
-    if (frame === 'zone-2') {
-      return { x: ZONES[2].center[0], y: ZONES[2].center[1], scale: 0.85 };
-    }
-    if (frame === 'zone-3') {
-      return { x: ZONES[3].center[0], y: ZONES[3].center[1], scale: 0.95 };
-    }
-    if (frame.startsWith('work-')) {
-      const id = frame.slice(5);
-      const art = ARTWORKS.find(a => a.id === id);
-      if (art) {
-        // 作品被縮放，要做反向補償讓視覺接近 360x360
-        const baseScale = 1.0 / (art.scale || 1);
-        return { x: art.pos[0], y: art.pos[1], scale: baseScale };
+    if (frame.startsWith('artist-')) {
+      const artist = artistById(frame.slice(7));
+      if (artist) {
+        return {
+          x: artist.pos[0], y: artist.pos[1],
+          scale: scaleForNode(`.node-center[data-artist="${artist.id}"]`, artist.scale)
+        };
       }
     }
-    return { x: 2000, y: 1400, scale: 0.5 };
+    if (frame.startsWith('zone-')) {
+      const z = ZONES[frame.slice(5)];
+      if (z) return { x: z.center[0], y: z.center[1], scale: z.scale };
+    }
+    if (frame.startsWith('work-')) {
+      const art = workById(frame.slice(5));
+      if (art) {
+        // 作品本身被放大時做反向補償，讓每件作品看起來一樣大
+        return { x: art.pos[0], y: art.pos[1], scale: 1.0 / (art.scale || 1) };
+      }
+    }
+    return { x: HUB.pos[0], y: HUB.pos[1], scale: HUB.scale };
+  }
+
+  // 上一層
+  function parentFrame(frame) {
+    if (frame.startsWith('work-')) {
+      const art = workById(frame.slice(5));
+      return art ? 'zone-' + art.zone : 'center';
+    }
+    if (frame.startsWith('zone-')) {
+      const z = ZONES[frame.slice(5)];
+      return z ? 'artist-' + z.artist : 'center';
+    }
+    return 'center';
   }
 
   function navigateTo(frame, art) {
     currentFrame = frame;
-    history.push(frame);
     const pos = getFramePosition(frame);
     viewAt(pos.x, pos.y, pos.scale);
     updateBreadcrumb();
-    updateZoneHighlights();
+    updateHighlights();
 
-    // 如果是作品，顯示信息卡
     if (art) {
       setTimeout(() => showInfoCard(art), 800);
     } else {
       hideInfoCard();
     }
 
-    // 7 秒後隱藏 intro 提示
-    setTimeout(() => {
-      const tip = document.getElementById('introTip');
-      if (tip) tip.classList.add('hidden');
-    }, 4000);
+    const tip = document.getElementById('introTip');
+    if (tip) setTimeout(() => tip.classList.add('hidden'), 4000);
   }
 
   function goBack() {
-    if (history.length <= 1) return;
-    history.pop(); // 移除當前
-    history.pop(); // 移除前一
-    const prev = history[history.length - 1] || 'center';
-    history.push(prev);
-    currentFrame = prev;
-    const pos = getFramePosition(prev);
-    viewAt(pos.x, pos.y, pos.scale);
-    updateBreadcrumb();
-    updateZoneHighlights();
-    hideInfoCard();
+    navigateTo(parentFrame(currentFrame));
   }
 
   function goHome() {
-    history.length = 0;
-    history.push('center');
-    currentFrame = 'center';
-    const pos = getFramePosition('center');
-    viewAt(pos.x, pos.y, pos.scale);
-    updateBreadcrumb();
-    updateZoneHighlights();
-    hideInfoCard();
+    navigateTo('center');
   }
 
   // ── 麵包屑 ───────────────────────────────────────────
-  function updateBreadcrumb() {
-    const bc = document.getElementById('breadcrumb');
-    const back = bc.querySelector('.back');
-    const labels = bc.querySelectorAll('.crumb');
-
-    // 重建
-    bc.innerHTML = '';
-
-    const homeCrumb = document.createElement('span');
-    homeCrumb.className = 'crumb' + (currentFrame === 'center' ? ' active' : '');
-    homeCrumb.textContent = '全覽';
-    homeCrumb.addEventListener('click', goHome);
-    bc.appendChild(homeCrumb);
-
-    if (currentFrame === 'center') {
-      homeCrumb.classList.add('active');
-      return;
-    }
-
-    const sep1 = document.createElement('span');
-    sep1.className = 'sep';
-    sep1.textContent = '›';
-    bc.appendChild(sep1);
-
-    if (currentFrame.startsWith('zone-')) {
-      const z = ZONES[currentFrame.slice(5)];
-      const zCrumb = document.createElement('span');
-      zCrumb.className = 'crumb active';
-      zCrumb.textContent = z.name;
-      bc.appendChild(zCrumb);
-    } else if (currentFrame.startsWith('work-')) {
-      const id = currentFrame.slice(5);
-      const art = ARTWORKS.find(a => a.id === id);
-      if (art) {
-        const zoneNum = art.zone;
-        const zCrumb = document.createElement('span');
-        zCrumb.className = 'crumb';
-        zCrumb.textContent = ZONES[zoneNum].name;
-        zCrumb.addEventListener('click', () => navigateTo('zone-' + zoneNum));
-        bc.appendChild(zCrumb);
-
-        const sep2 = document.createElement('span');
-        sep2.className = 'sep';
-        sep2.textContent = '›';
-        bc.appendChild(sep2);
-
-        const artCrumb = document.createElement('span');
-        artCrumb.className = 'crumb active';
-        artCrumb.textContent = art.zh;
-        bc.appendChild(artCrumb);
-      }
-    }
-
-    // 返回按鈕
-    const backSep = document.createElement('span');
-    backSep.className = 'sep';
-    backSep.textContent = '·';
-    bc.appendChild(backSep);
-
-    const backBtn = document.createElement('span');
-    backBtn.className = 'crumb back';
-    backBtn.textContent = '← 返回';
-    backBtn.addEventListener('click', goBack);
-    bc.appendChild(backBtn);
+  function crumb(text, frame, active) {
+    const el = document.createElement('span');
+    el.className = 'crumb' + (active ? ' active' : '');
+    el.textContent = text;
+    if (frame) el.addEventListener('click', () => navigateTo(frame));
+    return el;
   }
 
-  function updateZoneHighlights() {
-    // 區標籤根據當前視圖高亮 / 淡化
-    document.querySelectorAll('.zone-label').forEach(z => {
-      if (currentFrame.startsWith('zone-')) {
-        const zid = currentFrame.slice(5);
-        if (z.dataset.frame === currentFrame) {
-          z.style.opacity = 1;
-        } else {
-          z.style.opacity = 0.2;
-        }
-      } else if (currentFrame.startsWith('work-')) {
-        const id = currentFrame.slice(5);
-        const art = ARTWORKS.find(a => a.id === id);
-        if (art && z.dataset.frame === 'zone-' + art.zone) {
-          z.style.opacity = 1;
-        } else {
-          z.style.opacity = 0.2;
-        }
-      } else {
-        z.style.opacity = 1;
+  function sep(ch) {
+    const el = document.createElement('span');
+    el.className = 'sep';
+    el.textContent = ch;
+    return el;
+  }
+
+  function updateBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    bc.innerHTML = '';
+
+    // 目前所在的藝術家 / 主題區 / 作品
+    let artist = null, zoneNum = null, art = null;
+
+    if (currentFrame.startsWith('artist-')) {
+      artist = artistById(currentFrame.slice(7));
+    } else if (currentFrame.startsWith('zone-')) {
+      zoneNum = currentFrame.slice(5);
+      artist = artistById(ZONES[zoneNum].artist);
+    } else if (currentFrame.startsWith('work-')) {
+      art = workById(currentFrame.slice(5));
+      if (art) {
+        zoneNum = String(art.zone);
+        artist = artistById(art.artist);
       }
+    }
+
+    bc.appendChild(crumb('全覽', 'center', currentFrame === 'center'));
+    if (currentFrame === 'center') return;
+
+    if (artist) {
+      bc.appendChild(sep('›'));
+      bc.appendChild(crumb(
+        artist.zh, 'artist-' + artist.id,
+        currentFrame === 'artist-' + artist.id
+      ));
+    }
+
+    if (zoneNum) {
+      bc.appendChild(sep('›'));
+      bc.appendChild(crumb(
+        ZONES[zoneNum].name, 'zone-' + zoneNum,
+        currentFrame === 'zone-' + zoneNum
+      ));
+    }
+
+    if (art) {
+      bc.appendChild(sep('›'));
+      bc.appendChild(crumb(art.zh, null, true));
+    }
+
+    bc.appendChild(sep('·'));
+    const back = crumb('← 返回', null, false);
+    back.classList.add('back');
+    back.addEventListener('click', goBack);
+    bc.appendChild(back);
+  }
+
+  // ── 高亮 / 淡出 ──────────────────────────────────────
+  // 依目前所在層級，算出「作用中」的藝術家與主題區
+  function activeScope() {
+    if (currentFrame.startsWith('artist-')) {
+      return { artist: currentFrame.slice(7), zone: null };
+    }
+    if (currentFrame.startsWith('zone-')) {
+      const n = currentFrame.slice(5);
+      return { artist: ZONES[n].artist, zone: n };
+    }
+    if (currentFrame.startsWith('work-')) {
+      const art = workById(currentFrame.slice(5));
+      if (art) return { artist: art.artist, zone: String(art.zone), work: art.id };
+    }
+    return { artist: null, zone: null };
+  }
+
+  function updateHighlights() {
+    const scope = activeScope();
+
+    document.querySelectorAll('.zone-label').forEach(el => {
+      if (!scope.artist) el.style.opacity = 1;
+      else if (scope.zone) el.style.opacity = el.dataset.zone === scope.zone ? 1 : 0.15;
+      else el.style.opacity = el.dataset.artist === scope.artist ? 1 : 0.15;
     });
 
-    document.querySelectorAll('.artwork').forEach(a => {
-      const id = a.dataset.id;
-      if (currentFrame === 'center') {
-        a.style.opacity = 1;
-      } else if (currentFrame.startsWith('zone-')) {
-        const aid = a.dataset.frame.slice(5);
-        const art = ARTWORKS.find(x => x.id === aid);
-        if (art && currentFrame === 'zone-' + art.zone) {
-          a.style.opacity = 1;
-        } else {
-          a.style.opacity = 0.15;
-        }
-      } else if (currentFrame.startsWith('work-')) {
-        if ('work-' + id === currentFrame) {
-          a.style.opacity = 1;
-          a.style.borderColor = 'rgba(212,165,116,0.4)';
-        } else {
-          a.style.opacity = 0.2;
-        }
-      }
+    document.querySelectorAll('.node-center').forEach(el => {
+      if (!scope.artist) el.style.opacity = 1;
+      else el.style.opacity = el.dataset.artist === scope.artist ? 1 : 0.2;
+    });
+
+    document.querySelectorAll('.artwork').forEach(el => {
+      let opacity = 1;
+      if (scope.work) opacity = el.dataset.id === scope.work ? 1 : 0.2;
+      else if (scope.zone) opacity = el.dataset.zone === scope.zone ? 1 : 0.15;
+      else if (scope.artist) opacity = el.dataset.artist === scope.artist ? 1 : 0.15;
+      el.style.opacity = opacity;
+      el.classList.toggle('is-current', scope.work === el.dataset.id);
+    });
+
+    document.querySelectorAll('.hall-switch button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.frame === 'artist-' + scope.artist);
     });
   }
 
   // ── 信息卡 ───────────────────────────────────────────
+  function setMetaRow(name, value) {
+    const row = document.querySelector(`.info-meta tr[data-row="${name}"]`);
+    if (!row) return;
+    row.style.display = value ? '' : 'none';
+    const cell = row.querySelector('td');
+    if (cell) cell.textContent = value || '';
+  }
+
   function showInfoCard(art) {
+    const artist = artistById(art.artist);
     const card = document.getElementById('infoCard');
     card.classList.remove('hidden');
+    card.style.setProperty('--zone-color', ZONES[art.zone].color);
     document.getElementById('infoImage').src = art.image;
+    document.getElementById('infoImage').alt = `${art.zh} · ${art.en}`;
+    document.getElementById('infoArtist').textContent =
+      artist ? `${artist.zh} · ${ZONES[art.zone].name}` : ZONES[art.zone].name;
     document.getElementById('infoZh').textContent = art.zh;
     document.getElementById('infoEn').textContent = art.en;
-    document.getElementById('infoYear').textContent = art.year;
-    document.getElementById('infoMedium').textContent = art.medium;
-    document.getElementById('infoSize').textContent = art.size;
+    setMetaRow('year', art.year);
+    setMetaRow('medium', art.medium);
+    setMetaRow('size', art.size);
     document.getElementById('infoNote').textContent = art.note;
   }
 
   function hideInfoCard() {
-    const card = document.getElementById('infoCard');
-    card.classList.add('hidden');
+    document.getElementById('infoCard').classList.add('hidden');
   }
 
-  document.getElementById('closeInfo').addEventListener('click', () => {
-    goBack();
-  });
+  document.getElementById('closeInfo').addEventListener('click', goBack);
 
   // ── 縮放控制 ─────────────────────────────────────────
-  document.getElementById('zoomIn').addEventListener('click', () => {
-    const pos = getFramePosition(currentFrame);
-    viewAt(pos.x, pos.y, Math.min(pos.scale * 1.4, 2));
-  });
-  document.getElementById('zoomOut').addEventListener('click', () => {
-    const pos = getFramePosition(currentFrame);
-    viewAt(pos.x, pos.y, Math.max(pos.scale / 1.4, 0.15));
-  });
+  function zoomByFactor(factor) {
+    zoomAround(window.innerWidth / 2, window.innerHeight / 2, view.scale * factor);
+  }
+
+  document.getElementById('zoomIn').addEventListener('click', () => zoomByFactor(1.4));
+  document.getElementById('zoomOut').addEventListener('click', () => zoomByFactor(1 / 1.4));
   document.getElementById('zoomReset').addEventListener('click', goHome);
 
-  // ── 區標籤點擊 ───────────────────────────────────────
-  document.querySelectorAll('.zone-label').forEach(z => {
-    z.addEventListener('click', () => {
-      navigateTo(z.dataset.frame);
+  // ── 展廳切換 ─────────────────────────────────────────
+  document.querySelectorAll('.hall-switch button').forEach(btn => {
+    btn.addEventListener('click', () => navigateTo(btn.dataset.frame));
+  });
+
+  // ── 卡片點擊 ─────────────────────────────────────────
+  document.querySelectorAll('.node-center').forEach(el => {
+    el.addEventListener('click', () => {
+      const frame = el.dataset.frame;
+      if (currentFrame !== frame) navigateTo(frame);
     });
   });
 
-  // 中心卡 → 全覽
-  document.querySelector('.node-center').addEventListener('click', () => {
-    // 如果已是中心則不改
+  document.querySelectorAll('.hub-name[data-goto]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      navigateTo(el.dataset.goto);
+    });
+  });
+
+  document.querySelector('.node-hub').addEventListener('click', () => {
     if (currentFrame !== 'center') goHome();
   });
 
@@ -399,7 +486,15 @@
     else startTour();
   });
 
+  // 在某位藝術家的展廳裡啟動時，只導覽該展廳
+  function tourScope() {
+    const scope = activeScope();
+    return scope.artist ? worksOfArtist(scope.artist) : ARTWORKS;
+  }
+
   function startTour() {
+    tourList = tourScope();
+    if (!tourList.length) return;
     isTouring = true;
     tourIndex = 0;
     document.getElementById('tourBtn').classList.add('active');
@@ -407,9 +502,7 @@
     document.querySelector('.tour-btn .tour-text').textContent = 'Stop · 停止導覽';
     document.getElementById('tourProgress').classList.remove('hidden');
     updateTourProgress();
-    // 先回中心
-    goHome();
-    setTimeout(() => nextTourStep(), 1200);
+    tourTimer = setTimeout(nextTourStep, 600);
   }
 
   function stopTour() {
@@ -423,27 +516,47 @@
 
   function nextTourStep() {
     if (!isTouring) return;
-    if (tourIndex >= ARTWORKS.length) {
+    if (tourIndex >= tourList.length) {
       stopTour();
       goHome();
       return;
     }
-    const art = ARTWORKS[tourIndex];
+    const art = tourList[tourIndex];
     navigateTo('work-' + art.id, art);
-    updateTourProgress();
     tourIndex++;
+    updateTourProgress();
     tourTimer = setTimeout(nextTourStep, 6000);
   }
 
   function updateTourProgress() {
-    const fill = document.getElementById('progressFill');
-    const text = document.getElementById('progressText');
-    fill.style.width = ((tourIndex) / ARTWORKS.length * 100) + '%';
-    text.textContent = `${tourIndex} / ${ARTWORKS.length}`;
+    document.getElementById('progressFill').style.width =
+      (tourIndex / tourList.length * 100) + '%';
+    document.getElementById('progressText').textContent =
+      `${tourIndex} / ${tourList.length}`;
   }
 
   // ── 鍵盤導航 ─────────────────────────────────────────
-  document.addEventListener('keydown', (e) => {
+  // 目前層級下可以左右切換的清單
+  function siblingWorks() {
+    const scope = activeScope();
+    if (scope.zone) return worksOfZone(scope.zone);
+    if (scope.artist) return worksOfArtist(scope.artist);
+    return ARTWORKS;
+  }
+
+  function stepWork(delta) {
+    if (!currentFrame.startsWith('work-')) return false;
+    const list = siblingWorks();
+    const idx = list.findIndex(a => a.id === currentFrame.slice(5));
+    if (idx === -1) return false;
+    const next = list[(idx + delta + list.length) % list.length];
+    navigateTo('work-' + next.id, next);
+    return true;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
     if (isTouring && (e.key === 'Escape' || e.key === ' ')) {
       e.preventDefault();
       stopTour();
@@ -451,112 +564,129 @@
     }
 
     if (e.key === 'Escape') {
-      if (currentFrame === 'center') return;
-      if (currentFrame.startsWith('work-')) {
-        const id = currentFrame.slice(5);
-        const art = ARTWORKS.find(a => a.id === id);
-        navigateTo('zone-' + art.zone);
+      if (currentFrame !== 'center') goBack();
+      return;
+    }
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (stepWork(1)) return;
+      const scope = activeScope();
+      if (scope.zone) {
+        const first = worksOfZone(scope.zone)[0];
+        if (first) navigateTo('work-' + first.id, first);
+      } else if (scope.artist) {
+        navigateTo('zone-' + artistById(scope.artist).zones[0]);
       } else {
-        goHome();
+        navigateTo('artist-' + ARTISTS[0].id);
       }
       return;
     }
 
-    // →/↓：下一個作品
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      if (currentFrame.startsWith('work-')) {
-        const id = currentFrame.slice(5);
-        const idx = ARTWORKS.findIndex(a => a.id === id);
-        const next = ARTWORKS[(idx + 1) % ARTWORKS.length];
-        navigateTo('work-' + next.id, next);
-      } else if (currentFrame.startsWith('zone-')) {
-        const zn = parseInt(currentFrame.slice(5));
-        const first = ARTWORKS.find(a => a.zone === zn);
-        if (first) navigateTo('work-' + first.id, first);
-      } else if (currentFrame === 'center') {
-        navigateTo('zone-1');
-      }
-      e.preventDefault();
-    }
-
-    // ←/↑：上一個作品
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      if (currentFrame.startsWith('work-')) {
-        const id = currentFrame.slice(5);
-        const idx = ARTWORKS.findIndex(a => a.id === id);
-        const prev = ARTWORKS[(idx - 1 + ARTWORKS.length) % ARTWORKS.length];
-        navigateTo('work-' + prev.id, prev);
-      } else if (currentFrame.startsWith('zone-')) {
-        goHome();
-      }
       e.preventDefault();
+      if (stepWork(-1)) return;
+      goBack();
+      return;
     }
-  });
 
-  // 鍵盤字母快捷鍵：1/2/3 → 區
-  document.addEventListener('keydown', (e) => {
-    if (e.key === '1') navigateTo('zone-1');
-    if (e.key === '2') navigateTo('zone-2');
-    if (e.key === '3') navigateTo('zone-3');
+    if (e.key >= '1' && e.key <= '7' && ZONES[e.key]) {
+      navigateTo('zone-' + e.key);
+      return;
+    }
     if (e.key === '0' || e.key === 'h') goHome();
+    if (e.key === 'q') navigateTo('artist-' + ARTISTS[0].id);
+    if (e.key === 'w') navigateTo('artist-' + ARTISTS[1].id);
   });
 
   // ── 滑鼠拖曳平移 ─────────────────────────────────────
   let isDragging = false;
-  let dragStart = { x: 0, y: 0 };
-  let currentTransform = { tx: 0, ty: 0, scale: 1 };
+  const dragStart = { x: 0, y: 0, tx: 0, ty: 0 };
 
-  function getCurrentTransform() {
-    const matrix = new WebKitCSSMatrix(window.getComputedStyle(stage).transform);
-    return {
-      tx: matrix.e,
-      ty: matrix.f,
-      scale: matrix.a
-    };
-  }
-
-  stage.addEventListener('mousedown', (e) => {
-    // 排除節點點擊
+  stage.addEventListener('mousedown', e => {
     if (e.target.closest('.artwork') || e.target.closest('.zone-label')) return;
     isDragging = true;
     dragStart.x = e.clientX;
     dragStart.y = e.clientY;
-    currentTransform = getCurrentTransform();
-    stage.style.transition = 'none';
+    dragStart.tx = view.tx;
+    dragStart.ty = view.ty;
+    stage.classList.add('no-transition');
     document.body.style.cursor = 'grabbing';
   });
 
-  window.addEventListener('mousemove', (e) => {
+  window.addEventListener('mousemove', e => {
     if (!isDragging) return;
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    stage.style.transform = `translate(${currentTransform.tx + dx}px, ${currentTransform.ty + dy}px) scale(${currentTransform.scale})`;
+    view.tx = dragStart.tx + (e.clientX - dragStart.x);
+    view.ty = dragStart.ty + (e.clientY - dragStart.y);
+    applyView();
   });
 
   window.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.cursor = '';
-      stage.style.transition = '';
-    }
+    if (!isDragging) return;
+    isDragging = false;
+    document.body.style.cursor = '';
+    stage.classList.remove('no-transition');
   });
 
-  // 滾輪縮放
-  window.addEventListener('wheel', (e) => {
+  // ── 滾輪縮放 ─────────────────────────────────────────
+  window.addEventListener('wheel', e => {
     if (e.target.closest('.info-card')) return;
     e.preventDefault();
-    const pos = getFramePosition(currentFrame);
-    const delta = e.deltaY > 0 ? 1/1.08 : 1.08;
-    const newScale = Math.max(0.15, Math.min(2.5, pos.scale * delta));
-    // 縮放向鼠標位置
-    const rect = stage.getBoundingClientRect();
-    const cx = e.clientX;
-    const cy = e.clientY;
-    // 計算鼠標在 stage 局部座標
-    const sx = (cx - rect.left) / rect.width * STAGE_W;
-    const sy = (cy - rect.top) / rect.height * STAGE_H;
-    viewAt(sx, sy, newScale);
+    setLive();
+    const delta = e.deltaY > 0 ? 1 / 1.08 : 1.08;
+    zoomAround(e.clientX, e.clientY, view.scale * delta);
   }, { passive: false });
+
+  // ── 觸控：單指平移、雙指縮放 ─────────────────────────
+  let touchMode = null;
+  const touchStart = { x: 0, y: 0, tx: 0, ty: 0, dist: 0, scale: 1 };
+
+  const touchDist = t =>
+    Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const touchMid = t => ({
+    x: (t[0].clientX + t[1].clientX) / 2,
+    y: (t[0].clientY + t[1].clientY) / 2
+  });
+
+  stage.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      if (e.target.closest('.artwork') || e.target.closest('.zone-label')) {
+        touchMode = null;
+        return;
+      }
+      touchMode = 'pan';
+      touchStart.x = e.touches[0].clientX;
+      touchStart.y = e.touches[0].clientY;
+      touchStart.tx = view.tx;
+      touchStart.ty = view.ty;
+    } else if (e.touches.length === 2) {
+      touchMode = 'pinch';
+      touchStart.dist = touchDist(e.touches) || 1;
+      touchStart.scale = view.scale;
+    }
+    if (touchMode) stage.classList.add('no-transition');
+  }, { passive: true });
+
+  stage.addEventListener('touchmove', e => {
+    if (!touchMode) return;
+    if (touchMode === 'pan' && e.touches.length === 1) {
+      e.preventDefault();
+      view.tx = touchStart.tx + (e.touches[0].clientX - touchStart.x);
+      view.ty = touchStart.ty + (e.touches[0].clientY - touchStart.y);
+      applyView();
+    } else if (touchMode === 'pinch' && e.touches.length === 2) {
+      e.preventDefault();
+      const mid = touchMid(e.touches);
+      zoomAround(mid.x, mid.y, touchStart.scale * (touchDist(e.touches) / touchStart.dist));
+    }
+  }, { passive: false });
+
+  stage.addEventListener('touchend', e => {
+    if (e.touches.length === 0) {
+      touchMode = null;
+      stage.classList.remove('no-transition');
+    }
+  }, { passive: true });
 
   // ── 背景粒子動畫 ─────────────────────────────────────
   function initParticles() {
@@ -591,7 +721,6 @@
         ctx.fill();
       });
 
-      // 連線（粒子之間距離近時）
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const a = particles[i], b = particles[j];
@@ -600,7 +729,7 @@
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = `rgba(212, 165, 116, ${(1 - d/120) * 0.1})`;
+            ctx.strokeStyle = `rgba(212, 165, 116, ${(1 - d / 120) * 0.1})`;
             ctx.lineWidth = 0.4;
             ctx.stroke();
           }
@@ -615,15 +744,26 @@
   window.addEventListener('resize', () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    const pos = getFramePosition(currentFrame);
+    viewAt(pos.x, pos.y, pos.scale);
   });
 
   // ── 初始化 ───────────────────────────────────────────
   function init() {
+    stage.style.width = STAGE_W + 'px';
+    stage.style.height = STAGE_H + 'px';
+    constellation.style.width = STAGE_W + 'px';
+    constellation.style.height = STAGE_H + 'px';
+
+    placeFixedNodes();
+    buildZoneLabels();
     buildArtworks();
     buildConstellation();
     initParticles();
 
-    // 設置初始視圖（先用過渡讓畫面從全黑緩慢展開）
+    updateBreadcrumb();
+    updateHighlights();
+
     requestAnimationFrame(() => {
       const pos = getFramePosition('center');
       stage.style.opacity = '1';
@@ -631,7 +771,6 @@
     });
   }
 
-  // DOM 已就緒
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

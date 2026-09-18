@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国召 · 在場的缺席 — 香港 8.16</title>
+<title>王国召 × 张琳 · 雙個展 — 香港 8.16</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+TC:wght@300;400;500;700&family=Inter:wght@200;300;400&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
 <div id="stage">
 
   <!-- 連線層 -->
-  <svg id="constellation" viewBox="0 0 4000 2800" preserveAspectRatio="none">
+  <svg id="constellation" viewBox="0 0 4000 6700" preserveAspectRatio="none">
     <defs>
       <linearGradient id="lineGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stop-color="#d4a574" stop-opacity="0"/>
@@ -36,11 +36,58 @@
         <stop offset="50%" stop-color="#a8b89d" stop-opacity="0.4"/>
         <stop offset="100%" stop-color="#a8b89d" stop-opacity="0"/>
       </linearGradient>
+      <linearGradient id="lineGrad4" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#d1738f" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#d1738f" stop-opacity="0.45"/>
+        <stop offset="100%" stop-color="#d1738f" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineGrad5" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#c3c455" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#c3c455" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#c3c455" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineGrad6" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#8d7fc7" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#8d7fc7" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#8d7fc7" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineGrad7" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#58b6c9" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#58b6c9" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#58b6c9" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineGradHub" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#e8e4dc" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#e8e4dc" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#e8e4dc" stop-opacity="0"/>
+      </linearGradient>
     </defs>
   </svg>
 
-  <!-- ── 中心區：藝術家 ── -->
-  <div class="node node-center" data-frame="center" style="left:2000px; top:1400px;">
+  <!-- ── 序廳：展覽總覽 ── (位置由 JS 依 HUB 設定) -->
+  <div class="node node-hub" data-frame="center">
+    <div class="hub-card">
+      <p class="hub-kicker">香港 · 2025</p>
+      <h1 class="hub-title">雙個展</h1>
+      <p class="hub-title-en">Two Solo Presentations</p>
+      <div class="hub-names">
+        <span class="hub-name" data-goto="artist-wang">王国召<em>Wang Guozhao</em></span>
+        <span class="hub-slash">×</span>
+        <span class="hub-name" data-goto="artist-zhang">张琳<em>Zhang Lin</em></span>
+      </div>
+      <p class="hub-note">
+        <span class="bracket">「</span>三十七件作品，兩種沉默。<br>
+        一位在灰燼裡尋找呼吸，一位在色層之間留下時間。<span class="bracket">」</span>
+      </p>
+      <div class="hint-row">
+        <span class="hint-dot"></span>
+        <span class="hint-text">選擇一位藝術家進入 · Choose an artist to enter</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 展廳一：王国召 ── (位置由 JS 依 ARTISTS 設定) -->
+  <div class="node node-center" data-frame="artist-wang" data-artist="wang">
     <div class="center-card">
       <div class="zh-en-title">
         <h1 class="zh">在場的缺席</h1>
@@ -48,7 +95,7 @@
       </div>
       <div class="artist-meta">
         <p class="artist-name">王国召 <span class="en">Wang Guozhao</span></p>
-        <p class="exhibition">香港 · 個人展覽</p>
+        <p class="exhibition">壹展廳 · 十六件作品</p>
         <p class="date">August 16, 2025 —</p>
       </div>
       <p class="curator-note">
@@ -62,21 +109,33 @@
     </div>
   </div>
 
-  <!-- ── 三個主題區標籤 ── -->
-  <div class="zone-label" data-frame="zone-1" data-color="#d4a574" style="left:700px; top:1800px;">
-    <h2>壹 · 混沌</h2>
-    <p class="en">Chaos / Atmosphere</p>
-  </div>
-  <div class="zone-label" data-frame="zone-2" data-color="#7a9eb5" style="left:3300px; top:1950px;">
-    <h2>貳 · 形態</h2>
-    <p class="en">Forms / Flesh</p>
-  </div>
-  <div class="zone-label" data-frame="zone-3" data-color="#a8b89d" style="left:2000px; top:2600px;">
-    <h2>參 · 山海</h2>
-    <p class="en">Wilderness / Sea</p>
+  <!-- ── 展廳二：张琳 ── (位置由 JS 依 ARTISTS 設定) -->
+  <div class="node node-center node-center-alt" data-frame="artist-zhang" data-artist="zhang">
+    <div class="center-card">
+      <div class="zh-en-title">
+        <h1 class="zh">時間的印跡</h1>
+        <p class="en">Traces of Time</p>
+      </div>
+      <div class="artist-meta">
+        <p class="artist-name">张琳 <span class="en">Zhang Lin</span></p>
+        <p class="exhibition">貳展廳 · 二十一件作品</p>
+        <p class="date">August 16, 2025 —</p>
+      </div>
+      <p class="curator-note">
+        <span class="bracket">「</span>顏色覆蓋顏色，痕跡疊著痕跡。<br>
+        她印下的不是形狀，是形狀停留過的時間。<span class="bracket">」</span>
+      </p>
+      <div class="hint-row">
+        <span class="hint-dot"></span>
+        <span class="hint-text">點擊任意作品開始 · Click any work to begin</span>
+      </div>
+    </div>
   </div>
 
-  <!-- ── 作品節點 ── (位置將由 JS 動態佈局) -->
+  <!-- ── 主題區標籤 ── (由 JS 依 ZONES 生成) -->
+  <div id="zoneLabels"></div>
+
+  <!-- ── 作品節點 ── (由 JS 依 ARTWORKS 生成) -->
   <div id="artworks"></div>
 
 </div>
@@ -87,9 +146,13 @@
   <!-- 麵包屑 -->
   <nav class="breadcrumb" id="breadcrumb">
     <span data-frame="center" class="crumb active">全覽 · Overview</span>
-    <span class="sep">›</span>
-    <span data-frame="back" class="crumb back hidden">← 返回</span>
   </nav>
+
+  <!-- 展廳切換 -->
+  <div class="hall-switch" id="hallSwitch">
+    <button data-frame="artist-wang">王国召</button>
+    <button data-frame="artist-zhang">张琳</button>
+  </div>
 
   <!-- 縮放控制 -->
   <div class="zoom-controls">
@@ -107,7 +170,7 @@
   <!-- 進度指示器 -->
   <div class="tour-progress hidden" id="tourProgress">
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <span class="progress-text" id="progressText">0 / 16</span>
+    <span class="progress-text" id="progressText">0 / 0</span>
   </div>
 
   <!-- 作品信息卡（按下作品時顯示） -->
@@ -117,12 +180,13 @@
       <img id="infoImage" alt="" />
     </div>
     <div class="info-body">
+      <p class="info-artist" id="infoArtist"></p>
       <h2 class="info-zh" id="infoZh"></h2>
       <p class="info-en" id="infoEn"></p>
       <table class="info-meta">
-        <tr><th>年份</th><td id="infoYear"></td></tr>
-        <tr><th>媒材</th><td id="infoMedium"></td></tr>
-        <tr><th>尺寸</th><td id="infoSize"></td></tr>
+        <tr data-row="year"><th>年份</th><td id="infoYear"></td></tr>
+        <tr data-row="medium"><th>媒材</th><td id="infoMedium"></td></tr>
+        <tr data-row="size"><th>尺寸</th><td id="infoSize"></td></tr>
       </table>
       <p class="info-note" id="infoNote"></p>
     </div>
