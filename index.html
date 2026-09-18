@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>王国召 · 在場的缺席 — 香港 8.16</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Serif+TC:wght@300;400;500;700&family=Inter:wght@200;300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- ─── 背景層 ───────────────────────────────────────── -->
+<div class="bg-layer"></div>
+<canvas id="particleCanvas" class="particle-layer"></canvas>
+<div class="vignette"></div>
+
+<!-- ─── Prezi 畫布（無限縮放容器） ───────────────────────── -->
+<div id="stage">
+
+  <!-- 連線層 -->
+  <svg id="constellation" viewBox="0 0 4000 2800" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="lineGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#d4a574" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#d4a574" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="#d4a574" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#7a9eb5" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#7a9eb5" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#7a9eb5" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#a8b89d" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#a8b89d" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#a8b89d" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- ── 中心區：藝術家 ── -->
+  <div class="node node-center" data-frame="center" style="left:2000px; top:1400px;">
+    <div class="center-card">
+      <div class="zh-en-title">
+        <h1 class="zh">在場的缺席</h1>
+        <p class="en">The Presence of Absence</p>
+      </div>
+      <div class="artist-meta">
+        <p class="artist-name">王国召 <span class="en">Wang Guozhao</span></p>
+        <p class="exhibition">香港 · 個人展覽</p>
+        <p class="date">August 16, 2025 —</p>
+      </div>
+      <p class="curator-note">
+        <span class="bracket">「</span>十六件作品之間是沉默，是灰燼之後的呼吸。<br>
+        它們不是要被看懂，而是要被感受。<span class="bracket">」</span>
+      </p>
+      <div class="hint-row">
+        <span class="hint-dot"></span>
+        <span class="hint-text">點擊任意作品開始 · Click any work to begin</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 三個主題區標籤 ── -->
+  <div class="zone-label" data-frame="zone-1" data-color="#d4a574" style="left:700px; top:1800px;">
+    <h2>壹 · 混沌</h2>
+    <p class="en">Chaos / Atmosphere</p>
+  </div>
+  <div class="zone-label" data-frame="zone-2" data-color="#7a9eb5" style="left:3300px; top:1950px;">
+    <h2>貳 · 形態</h2>
+    <p class="en">Forms / Flesh</p>
+  </div>
+  <div class="zone-label" data-frame="zone-3" data-color="#a8b89d" style="left:2000px; top:2600px;">
+    <h2>參 · 山海</h2>
+    <p class="en">Wilderness / Sea</p>
+  </div>
+
+  <!-- ── 作品節點 ── (位置將由 JS 動態佈局) -->
+  <div id="artworks"></div>
+
+</div>
+
+<!-- ─── UI 控制層 ─────────────────────────────────────── -->
+<div class="ui-layer">
+
+  <!-- 麵包屑 -->
+  <nav class="breadcrumb" id="breadcrumb">
+    <span data-frame="center" class="crumb active">全覽 · Overview</span>
+    <span class="sep">›</span>
+    <span data-frame="back" class="crumb back hidden">← 返回</span>
+  </nav>
+
+  <!-- 縮放控制 -->
+  <div class="zoom-controls">
+    <button id="zoomOut" title="縮小 Zoom Out">−</button>
+    <button id="zoomIn" title="放大 Zoom In">+</button>
+    <button id="zoomReset" title="回到全覽 Reset">⌂</button>
+  </div>
+
+  <!-- 導覽按鈕 -->
+  <button id="tourBtn" class="tour-btn">
+    <span class="play-icon">▶</span>
+    <span class="tour-text">Guide Me · 帶我走一遍</span>
+  </button>
+
+  <!-- 進度指示器 -->
+  <div class="tour-progress hidden" id="tourProgress">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <span class="progress-text" id="progressText">0 / 16</span>
+  </div>
+
+  <!-- 作品信息卡（按下作品時顯示） -->
+  <aside class="info-card hidden" id="infoCard">
+    <button class="close-btn" id="closeInfo">✕</button>
+    <div class="info-image-wrap">
+      <img id="infoImage" alt="" />
+    </div>
+    <div class="info-body">
+      <h2 class="info-zh" id="infoZh"></h2>
+      <p class="info-en" id="infoEn"></p>
+      <table class="info-meta">
+        <tr><th>年份</th><td id="infoYear"></td></tr>
+        <tr><th>媒材</th><td id="infoMedium"></td></tr>
+        <tr><th>尺寸</th><td id="infoSize"></td></tr>
+      </table>
+      <p class="info-note" id="infoNote"></p>
+    </div>
+  </aside>
+
+  <!-- 說明提示（首次） -->
+  <div class="intro-tip" id="introTip">
+    <p>滾輪縮放 · 點擊節點進入 · 鍵盤 ← → 切換</p>
+  </div>
+
+</div>
+
+<!-- 載入畫面 -->
+<div id="loader" class="loader">
+  <div class="loader-text">
+    <p class="zh">正在載入…</p>
+    <p class="en">Loading</p>
+  </div>
+  <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+</div>
+
+<script src="data.js"></script>
+<script src="prezi.js"></script>
+</body>
+</html>
